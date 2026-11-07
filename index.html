@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'">
+  <title>便签</title>
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="desktop-note">
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="m15 3 6 6-4 1-4 6-2-2-6 6M8 11l5-4 1-5M7 10l7 7"/></symbol>
+    <symbol id="i-compact" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M14 4v16M3 9h11"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="m9 5-5 5 5 5M4 10h10a6 6 0 0 1 0 12" transform="translate(0 -2)"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="m11 5-5 4H3v6h3l5 4zM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></symbol>
+    <symbol id="i-muted" viewBox="0 0 24 24"><path d="m11 5-5 4H3v6h3l5 4zM16 9l6 6m0-6-6 6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M17 17 7 7m0 10V7h10"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 11a9 9 0 1 1 2 7M3 4v7h7M12 7v6l4 2"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24"><path d="M4 8v12h16V8M3 3h18v5H3zM9 12h6"/></symbol>
+    <symbol id="i-strike" viewBox="0 0 24 24"><path d="M17 5c-4-4-11-2-10 2 .3 2 3 3 5 3M7 17c3 4 11 2 10-2-.2-1.2-1.2-2-3-2M3 12h18"/></symbol>
+    <symbol id="i-underline" viewBox="0 0 24 24"><path d="M6 4v8a6 6 0 0 0 12 0V4M5 21h14"/></symbol>
+    <symbol id="i-highlight" viewBox="0 0 24 24"><path d="m7 14 8-10 5 4-8 10-5-4zM7 14l-3 5 5-1M3 22h17"/></symbol>
+    <symbol id="i-bold" viewBox="0 0 24 24"><path d="M7 4h6a4 4 0 0 1 0 8H7V4zm0 8h7a4 4 0 0 1 0 8H7v-8z"/></symbol>
+    <symbol id="i-todo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/></symbol>
+    <symbol id="i-detach" viewBox="0 0 24 24"><path d="M4 3h16v12l-6 6H4zM14 21v-6h6"/></symbol>
+  </defs></svg>
+
+  <header class="titlebar">
+    <div class="brand"><img class="brand-paper" src="assets/icon.png" alt=""><h1>便签</h1><span class="version">小小便签本</span></div>
+    <div class="window-actions">
+      <button id="pin" class="icon-button" title="所有便签置顶" aria-label="所有便签置顶" aria-pressed="false"><svg><use href="#i-pin"/></svg></button>
+      <button id="compact" class="icon-button" title="打开便签本与历史" aria-label="切换桌面便签与便签本" aria-pressed="true"><svg><use href="#i-compact"/></svg></button>
+      <span class="action-divider"></span>
+      <button id="minimize" class="icon-button" title="隐藏这张便签" aria-label="隐藏这张便签"><svg><use href="#i-minus"/></svg></button>
+      <button id="close" class="icon-button close-button" title="保存并关闭全部便签" aria-label="保存并关闭全部便签"><svg><use href="#i-close"/></svg></button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="desk" aria-label="便签编辑区">
+      <div class="desk-heading"><span class="section-label"><i></i>正在写</span><time id="today"></time></div>
+      <div class="paper-stage">
+        <div class="pad-shadow"></div><div class="under-sheet sheet-three"></div><div class="under-sheet sheet-two"></div><div class="under-sheet sheet-one"></div>
+        <article class="paper" id="paper">
+          <div class="glue-strip" title="拖动这里，移动便签"></div>
+          <div class="paper-meta"><span id="note-number">01</span><time id="note-date"></time></div>
+          <input id="note-title" class="note-title" maxlength="60" placeholder="起个标题…" aria-label="便签标题" spellcheck="false">
+          <div id="note-ink" class="note-ink" aria-hidden="true"></div>
+          <textarea id="note-body" class="note-body" placeholder="想到什么，就写下来…" aria-label="便签内容" spellcheck="false"></textarea>
+          <div id="todo-hits" aria-label="待办完成操作"></div>
+          <div class="paper-bottom"><span id="word-count">0 字</span><span class="paper-rule"></span></div>
+        </article>
+        <canvas id="paper-canvas" width="360" height="390" aria-hidden="true"></canvas>
+        <button id="tear-handle" class="tear-handle" aria-label="捏住右侧任意位置向左揭开；回车撕下" title="捏住右边缘，向左揭开"></button>
+        <button id="tear-left" class="tear-handle left-handle" aria-label="捏住左侧任意位置向右揭开；回车撕下" title="捏住左边缘，向右揭开"></button>
+        <div id="peel-actions" class="drop-zones" aria-hidden="true" hidden>
+          <div data-action="archive" title="归档"><svg aria-hidden="true"><use href="#i-archive"/></svg></div>
+          <div data-action="delete" title="删除"><svg aria-hidden="true"><use href="#i-trash"/></svg></div>
+          <div data-action="detach" title="撕下来"><svg aria-hidden="true"><use href="#i-detach"/></svg></div>
+        </div>
+      </div>
+      <div id="empty-active" class="empty-active" hidden><button id="create-note" class="primary-button"><svg><use href="#i-plus"/></svg>新建便签</button></div>
+      <div class="tear-caption"><svg><use href="#i-arrow"/></svg><span>两侧揭起，移入目标区域后松手</span></div>
+      <div class="paper-tools">
+        <div class="paper-utility">
+          <div class="palette" role="group" aria-label="纸张颜色">
+            <button data-color="butter" class="swatch" style="--swatch:#f2df99" title="奶油黄" aria-label="奶油黄" aria-pressed="true"></button>
+            <button data-color="sage" class="swatch" style="--swatch:#ceddc9" title="鼠尾草绿" aria-label="鼠尾草绿" aria-pressed="false"></button>
+            <button data-color="blue" class="swatch" style="--swatch:#cbdde7" title="雾蓝" aria-label="雾蓝" aria-pressed="false"></button>
+            <button data-color="rose" class="swatch" style="--swatch:#e9ccc5" title="浅陶粉" aria-label="浅陶粉" aria-pressed="false"></button>
+            <button data-color="cream" class="swatch" style="--swatch:#eae5d7" title="米白" aria-label="米白" aria-pressed="false"></button>
+            <button id="random-color" class="random-color" title="重新随机配色" aria-label="重新随机配色" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 8h.01M16 8h.01M12 12h.01M8 16h.01M16 16h.01"/></svg></button>
+          </div>
+          <span class="toolbar-divider" aria-hidden="true"></span>
+          <div class="format-tools" role="group" aria-label="文字格式">
+            <button id="strike" class="icon-button" title="划掉选中文字或当前行（Ctrl+Shift+X）" aria-label="删除线" aria-pressed="false"><svg><use href="#i-strike"/></svg></button>
+            <button id="underline" class="icon-button" title="为选中文字或当前行加下划线" aria-label="下划线" aria-pressed="false"><svg><use href="#i-underline"/></svg></button>
+            <button id="highlight" class="icon-button" title="高亮选中文字或当前行" aria-label="高亮" aria-pressed="false"><svg><use href="#i-highlight"/></svg></button>
+            <button id="bold" class="icon-button" title="加粗选中文字或当前行" aria-label="加粗" aria-pressed="false"><svg><use href="#i-bold"/></svg></button>
+            <button id="todo" class="icon-button" title="将当前行设为待办；点击圆圈完成" aria-label="当前行待办" aria-pressed="false"><svg><use href="#i-todo"/></svg></button>
+          </div>
+          <span class="toolbar-divider" aria-hidden="true"></span>
+          <button id="undo" class="undo-button" disabled title="撤销（Ctrl+Z，编辑文字时保留文字撤销）" aria-label="撤销最近操作"><svg><use href="#i-undo"/></svg><span id="undo-label">撤销撕下</span></button>
+        </div>
+        <div class="paper-editrow">
+          <div class="note-actions" role="group" aria-label="便签操作">
+            <button id="archive-current" class="note-action" title="归档当前便签" aria-label="归档当前便签"><svg aria-hidden="true"><use href="#i-archive"/></svg></button>
+            <button id="delete-current" class="note-action" title="删除当前便签" aria-label="删除当前便签"><svg aria-hidden="true"><use href="#i-trash"/></svg></button>
+            <button id="new-note" class="note-action new-button" title="撕下来贴到桌面（Ctrl+N）" aria-label="撕下来贴到桌面"><svg aria-hidden="true"><use href="#i-detach"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="archive-panel">
+      <div class="archive-heading"><h2><span id="archive-title">已归档</span> <span id="archive-count">0</span></h2><div class="archive-actions"><button id="purge-trash" class="purge-button" hidden>全部删除</button><button id="export-all" class="icon-button" title="导出全部便签为文本" aria-label="导出全部便签为文本"><svg><use href="#i-download"/></svg></button></div></div>
+      <div id="archive-list" class="archive-list"></div>
+      <div class="archive-navigation"><button id="desktop-view" class="archive-foot"><svg><use href="#i-detach"/></svg><span id="desktop-label">桌面便签</span></button><button id="trash-toggle" class="archive-foot"><svg><use href="#i-trash"/></svg><span id="trash-label">最近删除</span></button></div>
+    </aside>
+  </main>
+
+  <footer class="statusbar"><span id="save-status" role="status"><i></i>已保存在本机</span><div><button id="sound" aria-pressed="true" title="纸张声音"><svg><use href="#i-sound"/></svg><span>纸声</span></button><span class="footer-mark">便签 · DEMO 20</span></div></footer>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <dialog id="note-dialog"><div class="dialog-heading"><span id="preview-kind">已归档的便签</span><button id="dialog-close" class="icon-button" title="关闭" aria-label="关闭"><svg><use href="#i-close"/></svg></button></div><div id="preview-paper"><time id="preview-date"></time><h2 id="preview-title"></h2><pre id="preview-body"></pre></div><div class="dialog-actions"><button id="delete-note" class="danger-button">删除</button><button id="export-note" class="secondary-button">导出文本</button><button id="restore-note" class="primary-button">放回便签本</button></div></dialog>
+  <dialog id="purge-dialog"><h2>全部删除最近删除的便签？</h2><p id="purge-description"></p><div class="dialog-actions"><button id="purge-cancel" class="secondary-button">取消</button><button id="purge-confirm" class="danger-button">全部删除</button></div></dialog>
+  <script src="paper-text.js"></script>
+  <script src="paper-audio.js"></script>
+  <script src="paper-motion.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

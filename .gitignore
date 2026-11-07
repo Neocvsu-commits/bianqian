@@ -1,0 +1,13 @@
+/release/
+/backups/
+/.work/
+/node_modules/
+*.log
+*.lnk
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+.DS_Store
+Thumbs.db
