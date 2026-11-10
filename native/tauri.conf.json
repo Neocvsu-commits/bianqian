@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "便签",
+  "mainBinaryName": "bianqian",
+  "version": "0.31.0",
+  "identifier": "local.siye.demo",
+  "build": { "frontendDist": "../.work/webview-assets" },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": { "csp": null }
+  },
+  "bundle": { "active": false, "icon": ["../assets/icon.ico", "../assets/icon.png"] }
+}

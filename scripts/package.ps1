@@ -3,9 +3,9 @@
 )
 $ErrorActionPreference = 'Stop'
 $projectPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$releasePath = Join-Path $projectPath 'release\便签 Demo 21'
+$releasePath = Join-Path $projectPath 'release\便签 Demo 31 Electron'
 $appPath = Join-Path $releasePath 'resources\app'
-$sourceFiles = @('index.html', 'styles.css', 'app.js', 'paper-motion.js', 'paper-audio.js', 'paper-text.js', 'package.json', 'desktop\main.cjs', 'desktop\preload.cjs', 'assets\icon.png', 'assets\icon.ico')
+$sourceFiles = @('index.html', 'styles.css', 'app.js', 'paper-motion.js', 'paper-audio.js', 'paper-text.js', 'package.json', 'desktop\main.cjs', 'desktop\preload.cjs', 'desktop\note-model.js', 'desktop\webview-bridge.js', 'assets\icon.png', 'assets\icon.ico')
 $executablePath = Join-Path $releasePath '便签.exe'
 $iconPath = Join-Path $projectPath 'assets\icon.ico'
 $resourceScript = Join-Path $PSScriptRoot 'set-app-resources.ps1'
@@ -41,5 +41,6 @@ Copy-Item -LiteralPath (Join-Path $RuntimePath 'electron.exe') -Destination $exe
 $readmePath = Join-Path $projectPath 'README.md'
 if (Test-Path -LiteralPath $readmePath) {
     Copy-Item -LiteralPath $readmePath -Destination (Join-Path $releasePath 'README.md') -Force
+    Copy-Item -LiteralPath (Join-Path $projectPath 'screenshots') -Destination $releasePath -Recurse -Force
 }
 Write-Output "打包完成：$executablePath（已嵌入图标与产品信息）"

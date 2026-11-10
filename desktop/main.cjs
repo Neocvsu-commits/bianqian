@@ -3,6 +3,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { randomUUID } = require('node:crypto');
+const { colors, rangeFields, blankNote, initialState, validPosition, validBounds, normalizeData, ensurePaperPool, reduceAction } = require('./note-model.js');
 
 app.setName('便签');
 app.setPath('userData', path.join(app.getPath('appData'), 'SiyeDemo'));
@@ -11,8 +12,6 @@ const entryPath = path.join(__dirname, '..', 'index.html');
 const entryUrl = pathToFileURL(entryPath).href;
 const dataPath = path.join(app.getPath('userData'), 'notes.json');
 const maxDataBytes = 5 * 1024 * 1024;
-const colors = new Set(['butter', 'sage', 'blue', 'rose', 'cream']);
-const rangeFields = ['strikes', 'underlines', 'highlights', 'bolds'];
 const contexts = new Map();
 const noteWindows = new Map();
 let mainContext = null, store = null, stateReady = null, loadError = null;
@@ -28,80 +27,28 @@ function trusted(event) {
 	if (!ctx || ctx.win.isDestroyed() || !isEntryUrl(event.senderFrame?.url)) throw new Error('此操作只能由便利贴窗口发起。');
 	return ctx;
 }
-function blankNote(color = 'butter') {
-	return { id: randomUUID(), color, title: '', body: '', strikes: [], underlines: [], highlights: [], bolds: [], createdAt: new Date().toISOString() };
-}
-function initialState() {
-	const active = blankNote();
-	active.title = '今天的小事';
-	active.body = '把想法先记下来。\n\n□ 整理桌面\n□ 留一点时间散步\n□ 试着撕下这一页 ↖';
-	return { version: 1, revision: 0, active, archive: [], trash: [], desktop: [], paperQueue: [], settings: { sound: true, pinned: false, randomColors: false, mainWindow: { compact: true, hidden: false } } };
-}
-function normalizePaperQueue(data) {
-	if (!data.settings.randomColors) { data.paperQueue = []; return; }
-	const used = new Set(data.active ? [data.active.color] : []);
-	const queue = [];
-	for (const color of Array.isArray(data.paperQueue) ? data.paperQueue : []) {
-		if (!colors.has(color) || used.has(color)) continue;
-		queue.push(color); used.add(color);
-		if (queue.length === 3) break;
-	}
-	while (queue.length < 3) {
-		const choices = [...colors].filter(color => !used.has(color));
-		const color = choices[Math.floor(Math.random() * choices.length)];
-		queue.push(color); used.add(color);
-	}
-	data.paperQueue = queue;
-}
-function validPosition(value) {
-	return value && Number.isFinite(value.x) && Number.isFinite(value.y) && Math.abs(value.x) < 1000000 && Math.abs(value.y) < 1000000;
-}
-function validRanges(value, length) {
-	return Array.isArray(value) && value.every(range => range && Number.isInteger(range.start) && Number.isInteger(range.end) && range.start >= 0 && range.end > range.start && range.end <= length);
-}
-function validBounds(value) {
-	return validPosition(value) && Number.isFinite(value.width) && Number.isFinite(value.height) && value.width > 0 && value.height > 0 && value.width <= 20000 && value.height <= 20000;
-}
-function validNote(note) {
-	return note && typeof note.id === 'string' && note.id.length > 0 && typeof note.title === 'string' && typeof note.body === 'string' && colors.has(note.color) && Number.isFinite(Date.parse(note.createdAt)) && rangeFields.every(field => note[field] === undefined || validRanges(note[field], note.body.length)) && (note.position === undefined || validPosition(note.position));
-}
-function normalizeData(data) {
-	if (!data || data.version !== 1 || (data.active !== null && !validNote(data.active)) || !Array.isArray(data.archive) || !data.archive.every(validNote)) throw new Error('便签数据格式无效。');
-	data.trash ??= []; data.desktop ??= []; data.settings = { sound: true, pinned: false, randomColors: false, ...data.settings };
-	data.settings.mainWindow = { compact: true, hidden: false, ...data.settings.mainWindow };
-	const mainSettings = data.settings.mainWindow;
-	if (typeof data.settings.pinned !== 'boolean' || typeof data.settings.randomColors !== 'boolean' || typeof mainSettings.compact !== 'boolean' || typeof mainSettings.hidden !== 'boolean' || (mainSettings.bounds !== undefined && !validBounds(mainSettings.bounds)) || (mainSettings.desktopBounds !== undefined && !validBounds(mainSettings.desktopBounds))) throw new Error('窗口设置格式无效。');
-	data.revision ??= 0;
-	if (!Number.isSafeInteger(data.revision) || data.revision < 0) throw new Error('便签版本号无效。');
-	if (!Array.isArray(data.desktop) || !data.desktop.every(validNote) || !Array.isArray(data.trash) || !data.trash.every(item => item && validNote(item.note) && ['active', 'archive', 'desktop'].includes(item.source))) throw new Error('便签列表格式无效。');
-	const notes = [data.active, ...data.archive, ...data.desktop, ...data.trash.map(item => item.note)].filter(Boolean);
-	if (new Set(notes.map(note => note.id)).size !== notes.length) throw new Error('便签编号重复，已保留原文件。');
-	normalizePaperQueue(data);
-	return data;
-}
 function encodeData(data) {
 	const text = JSON.stringify(normalizeData(data));
 	if (Buffer.byteLength(text, 'utf8') > maxDataBytes) throw new Error('便签数据已超过 5 MB，请先导出部分历史。');
 	return text;
 }
 async function initializeStore() {
-	let previousQueue, restoredMother = false;
+	let previousData;
 	try {
 		if ((await fs.stat(dataPath)).size > maxDataBytes) throw new Error('too-large');
 		const loaded = JSON.parse(await fs.readFile(dataPath, 'utf8'));
-		previousQueue = JSON.stringify(loaded.paperQueue);
+		previousData = JSON.stringify(loaded);
 		store = normalizeData(loaded);
 		if (!store.active) {
 			ensurePaperPool(store, 'butter', true);
-			restoredMother = true;
 		}
 	} catch (error) {
 		store = initialState();
 		if (error.code !== 'ENOENT') loadError = '原便签数据无法读取，已保留原文件并暂停保存。请先导出当前内容。';
 		return;
 	}
-	// Persist repaired mother pages and preview colors once when loading older data.
-	if (restoredMother || previousQueue !== JSON.stringify(store.paperQueue)) {
+	// Persist repaired pages, preview colors and legacy theme data once on load.
+	if (previousData !== JSON.stringify(store)) {
 		try {
 			const migrated = structuredClone(store); migrated.revision += 1;
 			await atomicWrite(migrated); store = migrated;
@@ -131,112 +78,6 @@ function mutate(operation, afterCommit) {
 		return structuredClone(store);
 	});
 	mutationQueue = pending; return pending;
-}
-function locate(data, id) {
-	if (data.active?.id === id) return { source: 'active', note: data.active, index: 0 };
-	for (const source of ['archive', 'desktop']) {
-		const index = data[source].findIndex(note => note.id === id);
-		if (index >= 0) return { source, note: data[source][index], index };
-	}
-	throw new Error('便签已被移动或删除，请刷新后重试。');
-}
-function removeLocated(data, found) {
-	if (found.source === 'active') data.active = null;
-	else data[found.source].splice(found.index, 1);
-}
-function hasContent(note) { return Boolean(note && (note.title.trim() || note.body.trim())); }
-function blankFor(data, fixedColor = 'butter') {
-	normalizePaperQueue(data);
-	return blankNote(data.settings.randomColors ? data.paperQueue.shift() : fixedColor);
-}
-function ensurePaperPool(data, color = 'butter', renewMother = false) {
-	if (!data.active && (renewMother || data.desktop.length === 0)) { data.active = blankFor(data, color); data.settings.mainWindow.hidden = false; }
-	else if (!data.active && data.settings.mainWindow.compact) data.settings.mainWindow.hidden = true;
-	normalizePaperQueue(data);
-}
-function toActive(data, note) {
-	if (hasContent(data.active)) data.archive.push({ ...data.active, tornAt: new Date().toISOString() });
-	data.active = { ...note }; delete data.active.tornAt; delete data.active.position; delete data.active.hidden;
-	data.settings.mainWindow.hidden = false;
-	normalizePaperQueue(data);
-}
-function reduceAction(data, action, ctx) {
-	if (!action || typeof action.type !== 'string') throw new Error('便签操作无效。');
-	if (action.type === 'setSettings') {
-		if (!action.changes || Object.keys(action.changes).some(key => !['sound', 'pinned', 'randomColors'].includes(key) || typeof action.changes[key] !== 'boolean')) throw new Error('偏好设置无效。');
-		Object.assign(data.settings, action.changes); normalizePaperQueue(data); return;
-	}
-	if (action.type === 'createNote') {
-		if (!data.active) { data.active = blankFor(data); data.settings.mainWindow.hidden = false; }
-		else {
-			const bounds = ctx.compact ? ctx.desktopBounds : ctx.win.getBounds();
-			data.desktop.push({ ...blankFor(data, data.active.color), position: { x: bounds.x + 42, y: bounds.y + 28 }, hidden: false });
-		}
-		normalizePaperQueue(data); return;
-	}
-	if (action.type === 'purgeTrash') { data.trash = []; return; }
-	if (typeof action.id !== 'string') throw new Error('缺少便签编号。');
-	if (action.type === 'restoreTrash') {
-		const index = data.trash.findIndex(item => item.note.id === action.id);
-		if (index < 0) throw new Error('最近删除中已没有这张便签。');
-		const [item] = data.trash.splice(index, 1);
-		if (item.source === 'active') toActive(data, item.note);
-		else { const list = data[item.source]; if (item.source === 'desktop') item.note.hidden = false; list.splice(Number.isInteger(item.index) ? Math.max(0, Math.min(item.index, list.length)) : list.length, 0, item.note); }
-		return;
-	}
-	const found = locate(data, action.id);
-	switch (action.type) {
-		case 'randomizePaper': {
-			if (!['active', 'desktop'].includes(found.source)) throw new Error('请先把归档便签放回桌面再随机配色。');
-			const previousQueue = JSON.stringify(data.paperQueue);
-			const choices = [...colors].filter(color => color !== found.note.color);
-			found.note.color = choices[Math.floor(Math.random() * choices.length)];
-			data.settings.randomColors = true;
-			if (found.source === 'active') data.paperQueue = [];
-			normalizePaperQueue(data);
-			// A deliberate reroll must visibly change the mother's preview stack,
-			// even when the random draw happened to reproduce its prior order.
-			if (found.source === 'active' && JSON.stringify(data.paperQueue) === previousQueue) {
-				[data.paperQueue[0], data.paperQueue[1]] = [data.paperQueue[1], data.paperQueue[0]];
-			}
-			return;
-		}
-		case 'patchNote': {
-			const changes = action.changes;
-			if (!changes || typeof changes !== 'object' || Array.isArray(changes) || Object.keys(changes).some(key => !['title', 'body', 'color', ...rangeFields].includes(key))) throw new Error('便签字段无效。');
-			for (const key of ['title', 'body']) if (key in changes) { if (typeof changes[key] !== 'string') throw new Error('便签文字格式无效。'); found.note[key] = changes[key]; }
-			if ('color' in changes) { if (!colors.has(changes.color)) throw new Error('纸张颜色无效。'); found.note.color = changes.color; }
-			for (const field of rangeFields) {
-				if (field in changes) {
-					if (!validRanges(changes[field], found.note.body.length)) throw new Error('文字标记范围无效。');
-					found.note[field] = changes[field].map(({ start, end }) => ({ start, end }));
-				} else if ('body' in changes && found.note[field]) {
-					found.note[field] = found.note[field].map(range => ({ start: range.start, end: Math.min(range.end, found.note.body.length) })).filter(range => range.start < range.end);
-				}
-			}
-			if (found.source === 'active' && 'color' in changes) normalizePaperQueue(data);
-			return;
-		}
-		case 'archiveNote':
-			if (found.source === 'archive') return false;
-			removeLocated(data, found); data.archive.push({ ...found.note, tornAt: new Date().toISOString() }); ensurePaperPool(data, found.note.color, found.source === 'active'); return;
-		case 'deleteNote':
-			removeLocated(data, found); data.trash.push({ note: found.note, source: found.source, index: found.index, deletedAt: new Date().toISOString() }); ensurePaperPool(data, found.note.color, found.source === 'active'); return;
-		case 'detachNote': {
-			if (!['active', 'archive'].includes(found.source)) throw new Error('普通桌面便签不能再撕出，请拖动胶条移动它。');
-			if (action.position !== undefined && !validPosition(action.position)) throw new Error('桌面位置无效。');
-			const sourceBounds = ctx.compact ? ctx.desktopBounds : ctx.win.getBounds();
-			const position = action.position || found.note.position || { x: sourceBounds.x + 42, y: sourceBounds.y + 28 };
-			removeLocated(data, found); data.desktop.push(found.note);
-			if (found.source === 'active') { data.active = blankFor(data, found.note.color); data.settings.mainWindow.hidden = false; }
-			found.note.position = { x: Math.round(position.x), y: Math.round(position.y) }; found.note.hidden = false; delete found.note.tornAt;
-			normalizePaperQueue(data); return;
-		}
-		case 'restoreArchive':
-			if (found.source !== 'archive') throw new Error('这张便签不在归档中。');
-			removeLocated(data, found); toActive(data, found.note); return;
-		default: throw new Error('未知便签操作。');
-	}
 }
 
 ipcMain.handle('notes:load', async event => { trusted(event); await stateReady; await mutationQueue.catch(() => {}); return { data: structuredClone(store), ...(loadError ? { error: loadError } : {}) }; });
@@ -271,7 +112,7 @@ function updateMousePassthrough(ctx) {
 	const win = ctx.win;
 	if (win.isDestroyed() || win.isMinimized() || !win.isVisible()) return;
 	let ignore = false;
-	if (ctx.compact && !ctx.interacting) {
+	if (ctx.compact && !ctx.interacting && !ctx.paperMove) {
 		const pointer = screen.getCursorScreenPoint(); const bounds = win.getBounds(); const x = pointer.x - bounds.x; const y = pointer.y - bounds.y;
 		ignore = !ctx.hitRegions.some(region => x >= region.x && y >= region.y && x < region.x + region.width && y < region.y + region.height);
 	}
@@ -325,8 +166,8 @@ function fitBounds(bounds) {
 	const area = screen.getDisplayMatching(bounds).workArea;
 	return { ...bounds, x: Math.max(area.x, Math.min(bounds.x, area.x + area.width - bounds.width)), y: Math.max(area.y, Math.min(bounds.y, area.y + area.height - bounds.height)) };
 }
-function fitPaperBounds(bounds) {
-	const center = { x: Math.round(bounds.x + 320), y: Math.round(bounds.y + 335) };
+function fitPaperBounds(bounds, displayPoint) {
+	const center = displayPoint || { x: Math.round(bounds.x + 320), y: Math.round(bounds.y + 335) };
 	const area = screen.getDisplayNearestPoint(center).workArea;
 	return { ...bounds, x: Math.max(area.x - 70, Math.min(bounds.x, area.x + area.width - 500)), y: Math.max(area.y - 140, Math.min(bounds.y, area.y + area.height - 530)) };
 }
@@ -335,27 +176,83 @@ function canvasBoundsFor(logical) {
 }
 function windowMode(ctx) {
 	if (!ctx.compact) return { compact: false, layout: null };
+	if (ctx.paperMove) return { compact: true, moving: true, layout: ctx.paperMove.layout };
 	const canvas = ctx.win.getBounds(), logical = ctx.desktopBounds;
-	return { compact: true, layout: { paperX: logical.x + 140 - canvas.x, paperY: logical.y + 140 - canvas.y, viewportWidth: canvas.width, viewportHeight: canvas.height } };
+	return { compact: true, moving: Boolean(ctx.paperMove), layout: { paperX: logical.x + 140 - canvas.x, paperY: logical.y + 140 - canvas.y, viewportWidth: canvas.width, viewportHeight: canvas.height } };
 }
-function updateDesktopBounds(ctx, position) {
-	ctx.desktopBounds = fitPaperBounds({ x: Math.round(position.x), y: Math.round(position.y), width: 640, height: 670 });
+function updateDesktopBounds(ctx, position, displayPoint) {
+	if (ctx.paperMove) return windowMode(ctx);
+	ctx.desktopBounds = fitPaperBounds({ x: Math.round(position.x), y: Math.round(position.y), width: 640, height: 670 }, displayPoint);
 	const canvas = canvasBoundsFor(ctx.desktopBounds), current = ctx.win.getBounds();
 	// Same-screen moves update only logical paper coordinates.
 	if (['x', 'y', 'width', 'height'].some(key => canvas[key] !== current[key])) setWindowBounds(ctx, canvas);
 	return windowMode(ctx);
 }
+function beginNativePaperMove(ctx) {
+	if (!ctx.compact || ctx.paperMove || ctx.win.isDestroyed() || shuttingDown || appExiting) return;
+	clearTimeout(ctx.moveTimer);
+	const canvas = ctx.win.getBounds();
+	const layout = windowMode(ctx).layout;
+	ctx.paperMove = {
+		original: { ...ctx.desktopBounds },
+		offset: { x: ctx.desktopBounds.x - canvas.x, y: ctx.desktopBounds.y - canvas.y },
+		layout,
+	};
+	ctx.interacting = true; updateMousePassthrough(ctx);
+	ctx.win.webContents.send('window:mode-changed', windowMode(ctx));
+}
+function finishNativePaperMove(ctx) {
+	const drag = ctx.paperMove;
+	if (!drag || ctx.win.isDestroyed()) return ctx.paperMoveEnd || Promise.resolve();
+	// Windows moves the existing surface during its native modal loop. Only
+	// convert the final position and restore the display canvas after release.
+	const canvas = ctx.win.getBounds();
+	const position = { x: canvas.x + drag.offset.x, y: canvas.y + drag.offset.y };
+	ctx.paperMove = null;
+	let settledBounds, lastLayout = drag.layout;
+	const place = target => {
+		const mode = updateDesktopBounds(ctx, target);
+		// Keep native hit testing aligned until the renderer reports its new DOM bounds.
+		ctx.hitRegions = ctx.hitRegions.map(region => ({ ...region, x: region.x + mode.layout.paperX - lastLayout.paperX, y: region.y + mode.layout.paperY - lastLayout.paperY }));
+		lastLayout = mode.layout;
+		ctx.win.webContents.send('window:mode-changed', mode);
+		return mode;
+	};
+	const pending = (async () => {
+		try {
+			const mode = place(position);
+			settledBounds = ctx.desktopBounds;
+			await saveWindowState(ctx);
+			return mode;
+		} catch (error) {
+			if (!ctx.win.isDestroyed() && !ctx.paperMove && ctx.desktopBounds === settledBounds) place(drag.original);
+			throw error;
+		} finally {
+			ctx.interacting = Boolean(ctx.paperMove); updateMousePassthrough(ctx);
+		}
+	})().finally(() => { if (ctx.paperMoveEnd === pending) ctx.paperMoveEnd = null; });
+	ctx.paperMoveEnd = pending;
+	return pending;
+}
+function refreshDesktopLayouts() {
+	for (const ctx of contexts.values()) {
+		if (!ctx.compact || ctx.win.isDestroyed() || shuttingDown || appExiting) continue;
+		if (ctx.paperMove) continue;
+		ctx.win.webContents.send('window:mode-changed', updateDesktopBounds(ctx, ctx.desktopBounds));
+		void saveWindowState(ctx).catch(() => positionError(ctx));
+	}
+}
 function setCompact(ctx, compact) {
-	if (ctx.compact === compact) return windowMode(ctx);
+	if (ctx.compact === compact || ctx.paperMove) return windowMode(ctx);
 	clearTimeout(ctx.moveTimer);
 	const win = ctx.win; restorePeelWindow(ctx);
 	if (compact) {
 		if (win.isMaximized()) win.unmaximize(); ctx.normalBounds = win.getBounds(); win.setMinimumSize(1, 1);
 		ctx.compact = true;
 		updateDesktopBounds(ctx, ctx.desktopBounds || { x: ctx.normalBounds.x + 210, y: ctx.normalBounds.y + 55 });
-		win.setResizable(false); win.setBackgroundColor('#00000000');
+		win.setResizable(false); win.setMaximizable(false); win.setBackgroundColor('#00000000');
 	} else {
-		ctx.compact = false; win.setResizable(true); win.setMinimumSize(880, 680);
+		ctx.compact = false; win.setResizable(true); win.setMaximizable(true); win.setMinimumSize(880, 680);
 		setWindowBounds(ctx, fitBounds(ctx.normalBounds || { x: ctx.desktopBounds.x - 210, y: ctx.desktopBounds.y - 55, width: 1060, height: 780 }));
 		win.setBackgroundColor('#f4f2ed');
 	}
@@ -574,10 +471,10 @@ function createWindow(noteId = null, position) {
 	const bounds = compact ? canvasBoundsFor(desktopBounds) : validPosition(saved) ? fitBounds({ x: Math.round(saved.x), y: Math.round(saved.y), ...normalSize }) : normalSize;
 	const hidden = noteId === null ? Boolean(mainSettings.hidden || (!store.active && compact)) : Boolean(store.desktop.find(note => note.id === noteId)?.hidden);
 	const win = new BrowserWindow({
-		...bounds, minWidth: compact ? 1 : 880, minHeight: compact ? 1 : 680, title: '便签', icon: path.join(__dirname, '..', 'assets', 'icon.ico'), frame: false, transparent: true, hasShadow: false, resizable: !compact, show: false, alwaysOnTop: store.settings.pinned, backgroundColor: compact ? '#00000000' : '#f4f2ed',
+		...bounds, minWidth: compact ? 1 : 880, minHeight: compact ? 1 : 680, title: '便签', icon: path.join(__dirname, '..', 'assets', 'icon.ico'), frame: false, transparent: true, hasShadow: false, resizable: !compact, maximizable: !compact, show: false, alwaysOnTop: store.settings.pinned, backgroundColor: compact ? '#00000000' : '#f4f2ed',
 		webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true },
 	});
-	const ctx = { win, noteId, compact, hidden, ready: false, nativeReady: false, rendererReady: false, wantFocus: false, hasEverShown: false, taskbarFallback: false, hidePromise: null, normalBounds: compact ? null : win.getBounds(), desktopBounds, hitRegions: [], interacting: false, ignoringMouse: false, hitTimer: null, peelExpansion: null, flushReady: false, flushRequest: null, syncRequest: null, moveTimer: null, ignorePositionUntil: Date.now() + 500 };
+	const ctx = { win, noteId, compact, hidden, ready: false, nativeReady: false, rendererReady: false, wantFocus: false, hasEverShown: false, taskbarFallback: false, hidePromise: null, normalBounds: compact ? null : win.getBounds(), desktopBounds, hitRegions: [], interacting: false, ignoringMouse: false, hitTimer: null, peelExpansion: null, paperMove: null, paperMoveEnd: null, flushReady: false, flushRequest: null, syncRequest: null, moveTimer: null, ignorePositionUntil: Date.now() + 500 };
 	const layout = windowMode(ctx).layout;
 	if (layout) ctx.hitRegions = [{ x: layout.paperX, y: layout.paperY, width: 360, height: 390 }];
 	contexts.set(win.webContents.id, ctx); if (noteId === null) mainContext = ctx; else noteWindows.set(noteId, ctx);
@@ -586,7 +483,13 @@ function createWindow(noteId = null, position) {
 	win.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
 	win.once('ready-to-show', () => { ctx.nativeReady = true; finishWindowReady(ctx); });
 	ctx.hitTimer = setInterval(() => updateMousePassthrough(ctx), 32);
-	win.on('blur', () => { ctx.interacting = false; updateMousePassthrough(ctx); });
+	win.on('blur', () => {
+		if (!ctx.paperMove) { ctx.interacting = false; updateMousePassthrough(ctx); }
+	});
+	win.hookWindowMessage(0x0231, () => beginNativePaperMove(ctx)); // WM_ENTERSIZEMOVE
+	win.hookWindowMessage(0x0232, () => { // WM_EXITSIZEMOVE, including native Esc cancellation
+		setImmediate(() => { void finishNativePaperMove(ctx).catch(() => positionError(ctx)); });
+	});
 	const rememberBounds = () => {
 		if (ctx.compact || noteId !== null || Date.now() < ctx.ignorePositionUntil) return;
 		clearTimeout(ctx.moveTimer); const current = win.getBounds();
@@ -653,6 +556,7 @@ function createWindow(noteId = null, position) {
 	}
 	const webContentsId = win.webContents.id;
 	win.on('closed', () => {
+		ctx.paperMove = null;
 		if (ctx.syncRequest) finishSync(ctx, ctx.syncRequest.id, '便签窗口已关闭，本次操作已取消，请重试。');
 		clearInterval(ctx.hitTimer); clearTimeout(ctx.moveTimer); ctx.flushRequest?.resolve(); ctx.flushRequest = null; ctx.peelExpansion = null; contexts.delete(webContentsId);
 		if (noteId !== null && noteWindows.get(noteId) === ctx) noteWindows.delete(noteId);
@@ -664,6 +568,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 else {
 	app.on('second-instance', () => { if (mainContext) void openMother(false).catch(error => { if (mainContext && !mainContext.win.isDestroyed()) mainContext.win.webContents.send('notes:close-error', error.message); }); });
 	app.whenReady().then(async () => {
+		for (const name of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(name, refreshDesktopLayouts);
 		Menu.setApplicationMenu(null); stateReady = initializeStore(); await stateReady; createWindow();
 		for (const note of store.desktop) createWindow(note.id, note.position);
 	});

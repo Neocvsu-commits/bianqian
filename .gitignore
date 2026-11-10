@@ -2,6 +2,8 @@
 /backups/
 /.work/
 /node_modules/
+/native/target/
+/native/gen/
 *.log
 *.lnk
 .env

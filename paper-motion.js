@@ -11,6 +11,7 @@
     const rgb = [1, 3, 5].map(i => parseInt(value.slice(i, i + 2), 16));
     return `rgb(${rgb.map(v => Math.round(v + (toward - v) * amount)).join(',')})`;
   }
+  const isDarkPaper = color => /^#[0-9a-f]{6}$/i.test(color) && [1,3,5].reduce((sum,offset)=>sum+parseInt(color.slice(offset,offset+2),16),0)<300;
 
   // Analytic damped spring: consistent at 60, 120, or 144 Hz.
   function spring(position, velocity, target, dt, frequency, damping) {
@@ -119,14 +120,19 @@
         left: `${-bounds.left}px`, top: `${-bounds.top}px`, right: 'auto', bottom: 'auto',
         width: `${this.viewportWidth}px`, height: `${this.viewportHeight}px`
       });
-      const width = Math.round(this.viewportWidth * dpr);
-      const height = Math.round(this.viewportHeight * dpr);
+      // The animation canvas is display:none while editing. Resizing its full
+      // screen buffer in that state needlessly stalls every mode change.
+      if (repaint) this.draw();
+    }
+
+    ensureViewportBuffer() {
+      const width = Math.round(this.viewportWidth * this.dpr);
+      const height = Math.round(this.viewportHeight * this.dpr);
       if (this.canvas.width !== width || this.canvas.height !== height) {
         this.canvas.width = width;
         this.canvas.height = height;
         this.dirtyBounds = null;
       }
-      if (repaint) this.draw();
     }
 
     setAppearance(next) {
@@ -156,6 +162,7 @@
     makeSurface() {
       const {w, h, dpr} = this;
       const {color} = this.appearance;
+      const dark = isDarkPaper(color);
       const key = `${w}/${h}/${dpr}/${color}`;
       if (key === this.surfaceKey) return;
       this.surfaceKey = key;
@@ -165,15 +172,15 @@
       const ctx = this.surface.getContext('2d');
       ctx.scale(dpr, dpr);
       const light = ctx.createLinearGradient(0, 0, w * .85, h);
-      light.addColorStop(0, mix(color, .14));
-      light.addColorStop(.18, mix(color, .065));
+      light.addColorStop(0, mix(color, dark ? .04 : .14));
+      light.addColorStop(.18, mix(color, dark ? .018 : .065));
       light.addColorStop(.68, color);
       light.addColorStop(1, mix(color, .035, 0));
       ctx.fillStyle = light;
       ctx.fillRect(0, 0, w, h);
       const glow = ctx.createRadialGradient(w * .22, h * .24, 12, w * .32, h * .35, w * .95);
-      glow.addColorStop(0, 'rgba(255,253,226,.10)');
-      glow.addColorStop(1, 'rgba(225,170,49,.015)');
+      glow.addColorStop(0, dark ? 'rgba(215,225,240,.025)' : 'rgba(255,253,226,.10)');
+      glow.addColorStop(1, dark ? 'rgba(0,0,0,0)' : 'rgba(225,170,49,.015)');
       ctx.fillStyle = glow;
       ctx.fillRect(0, 0, w, h);
 
@@ -186,10 +193,10 @@
       const pixels = grainContext.createImageData(160, 160);
       for (let i = 0; i < pixels.data.length; i += 4) {
         const white = random() > .49;
-        pixels.data[i] = white ? 255 : 89;
-        pixels.data[i + 1] = white ? 252 : 66;
-        pixels.data[i + 2] = white ? 229 : 22;
-        pixels.data[i + 3] = Math.round(random() * (white ? 28 : 12));
+        pixels.data[i] = dark ? (white ? 230 : 12) : (white ? 255 : 89);
+        pixels.data[i + 1] = dark ? (white ? 235 : 12) : (white ? 252 : 66);
+        pixels.data[i + 2] = dark ? (white ? 240 : 12) : (white ? 229 : 22);
+        pixels.data[i + 3] = Math.round(random() * (dark ? 12 : white ? 28 : 12));
       }
       grainContext.putImageData(pixels, 0, 0);
       ctx.fillStyle = ctx.createPattern(grain, 'repeat');
@@ -232,6 +239,7 @@
       this.textureKey = textureKey;
       this.appearanceKey = appearanceKey;
       const {color, title, date, lines, number = '01', wordCount = 0, scrollOffset = 0} = this.appearance;
+      const dark = isDarkPaper(color), inkColor = dark ? '#e4e5e1' : '#50513f', mutedColor = dark ? '#9ca2a8' : 'rgba(101,92,58,.412)';
       this.makeSurface();
       for (const canvas of [this.front, this.back]) {
         canvas.width = Math.round(w * dpr);
@@ -242,7 +250,7 @@
       front.scale(dpr, dpr);
       front.drawImage(this.surface, 0, 0, w, h);
       front.textBaseline = 'alphabetic';
-      front.fillStyle = title ? '#444638' : 'rgba(101,92,58,.412)';
+      front.fillStyle = title ? (dark ? '#e4e5e1' : '#444638') : mutedColor;
       front.font = '500 25px "SiyeLatin", "KaiTi", "STKaiti", "Microsoft YaHei", serif';
       const titleMetrics = front.measureText('国Ag');
       const titleBaseline = Number.isFinite(titleMetrics.fontBoundingBoxAscent) && Number.isFinite(titleMetrics.fontBoundingBoxDescent)
@@ -254,13 +262,13 @@
       front.clip();
       textTools.drawLineRun(front, String(title || '起个标题…'), 29, titleBaseline);
       front.restore();
-      front.fillStyle = 'rgba(98,92,62,.49)';
+      front.fillStyle = dark ? '#9ca2a8' : 'rgba(98,92,62,.49)';
       front.font = '10px "Segoe UI", sans-serif';
       if ('letterSpacing' in front) front.letterSpacing = '1.1px';
       front.textAlign = 'right';
       front.fillText(String(date || ''), w - 29, 45);
       front.textAlign = 'left';
-      front.strokeStyle = 'rgba(116,99,46,.22)';
+      front.strokeStyle = dark ? 'rgba(170,182,198,.28)' : 'rgba(116,99,46,.22)';
       front.lineWidth = 1;
       front.beginPath();
       front.roundRect(29.5, 33.5, 23, 19, 3);
@@ -271,7 +279,7 @@
       const sourceLines = Array.isArray(lines) ? lines : String(lines).split('\n');
       const lineText = line => typeof line === 'string' ? line : String(line?.text ?? '');
       const emptyBody = !sourceLines.length || (sourceLines.length === 1 && lineText(sourceLines[0]) === '');
-      front.fillStyle = emptyBody ? 'rgba(101,92,58,.412)' : '#50513f';
+      front.fillStyle = emptyBody ? mutedColor : inkColor;
       front.font = '20px "SiyeLatin", "KaiTi", "STKaiti", "Microsoft YaHei", serif';
       const bodyMetrics = front.measureText('国Ag');
       const bodyBaseline = Number.isFinite(bodyMetrics.fontBoundingBoxAscent) && Number.isFinite(bodyMetrics.fontBoundingBoxDescent)
@@ -330,7 +338,7 @@
         const position = index => 29 + textTools.measureLine(front, line.text.slice(0, index));
         const markerLength = line.todo && /^[○●]/.test(line.text) ? 1 : 0;
         front.save();
-        front.fillStyle = 'rgba(152,125,42,.18)';
+        front.fillStyle = dark ? 'rgba(235,202,111,.22)' : 'rgba(152,125,42,.18)';
         for (const range of line.highlights) {
           const x1 = position(range.start), x2 = position(range.end);
           if (x2 <= x1) continue;
@@ -359,7 +367,7 @@
           if (line.todo.done) front.fill();
           front.stroke();
           if (line.todo.done) {
-            front.strokeStyle = '#fffdf4';
+            front.strokeStyle = dark ? '#292c30' : '#fffdf4';
             front.lineWidth = 1.2;
             front.lineCap = 'round';
             front.beginPath();
@@ -398,9 +406,9 @@
       }
       front.restore();
       front.font = '9px "Segoe UI", "Microsoft YaHei UI", sans-serif';
-      front.fillStyle = 'rgba(106,100,62,.46)';
+      front.fillStyle = dark ? '#9ca2a8' : 'rgba(106,100,62,.46)';
       front.fillText(`${wordCount} 字`, 29, h - 25);
-      front.strokeStyle = 'rgba(107,91,45,.125)';
+      front.strokeStyle = dark ? 'rgba(142,152,168,.24)' : 'rgba(107,91,45,.125)';
       front.beginPath();
       front.moveTo(70, h - 28);
       front.lineTo(w - 47, h - 28);
@@ -408,7 +416,7 @@
       const back = this.back.getContext('2d');
       back.scale(dpr, dpr);
       back.drawImage(this.surface, 0, 0, w, h);
-      back.fillStyle = mix(color, .28);
+      back.fillStyle = mix(color, dark ? .07 : .28);
       back.globalAlpha = .64;
       back.fillRect(0, 0, w, h);
       back.globalAlpha = .04;
@@ -752,10 +760,11 @@
     }
 
     draw() {
-      if (this.phase === 'detached') {
+      if (this.phase === 'idle' || this.phase === 'detached') {
         this.clearDirty();
         return;
       }
+      this.ensureViewportBuffer();
       const {ctx, w, h, dpr} = this;
       const geometry = this.geometry();
       this.clearDirty(this.projectedBounds(geometry));

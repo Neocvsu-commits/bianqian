@@ -13,6 +13,9 @@ dialog{padding:21px;width:414px;border:1px solid #deded0;border-radius:15px;back
 
 /* Paper is the surface; the transparent desktop window has no visible frame. */
 html{background:transparent}
+/* Keep the native window alive while exchanging notebook/desktop layouts. */
+html.mode-transition{visibility:hidden;background:transparent!important}
+html.mode-transition body{background:transparent!important}
 .paper{
   background-color:var(--paper);
   background-image:var(--paper-surface,linear-gradient(180deg,#fff8ba,#f5de86));
@@ -60,7 +63,7 @@ html{background:transparent}
 .desktop-note .icon-button:hover{background:#fffbee;color:#463d2c}
 .desktop-note .icon-button[aria-pressed=true]{color:#556644;background:#eef0dfee}
 .desktop-note .close-button:hover{background:#f5d8c9;color:#99543c}
-.desktop-note #compact{margin-right:auto}
+.desktop-note #theme-toggle{margin-right:auto}
 .desktop-note .paper-tools{
   position:absolute;top:550px;left:140px;width:290px;height:40px;padding:0 14px;
   margin:0;gap:15px;border-radius:10px;pointer-events:auto;background:#fbf7ecf5;
@@ -98,7 +101,7 @@ html{background:transparent}
 .desktop-note:has(.paper-stage.is-tearing:not(.is-hovering)) .paper-tools,
 .desktop-note:has(.paper-stage.is-tearing:not(.is-hovering)) .undo-button,
 .desktop-note:has(.paper-stage.is-tearing:not(.is-hovering)) .statusbar{opacity:0;pointer-events:none}
-.desktop-note .toast{bottom:25px;border-radius:7px;background:#514a3deb;color:#fff9e8;font-size:11px;max-width:380px}
+.desktop-note .toast{left:calc(var(--note-x,140px) + 180px);top:calc(var(--note-y,140px) + 374px);bottom:auto;transform:translate(-50%,-100%);border-radius:7px;background:#514a3deb;color:#fff9e8;font-size:11px;width:max-content;max-width:336px;overflow-wrap:anywhere}
 .desktop-note dialog::backdrop{background:transparent;backdrop-filter:none}
 
 /* Desktop paper moves inside a stationary transparent canvas. */
@@ -106,7 +109,8 @@ html{background:transparent}
 .desktop-note .titlebar{left:var(--note-x,140px);top:calc(var(--note-y,140px) - 41px);-webkit-app-region:no-drag}
 .desktop-note .paper-tools{left:var(--note-x,140px);top:calc(var(--note-y,140px) + 410px)}
 .desktop-note .statusbar{left:calc(var(--note-x,140px) + 5px);top:calc(var(--note-y,140px) + 461px)}
-.desktop-note .glue-strip{-webkit-app-region:no-drag;touch-action:none;cursor:grab}
+.desktop-note .glue-strip{-webkit-app-region:drag;touch-action:none;user-select:none;cursor:move}
+.desktop-note .paper-stage.is-tearing .glue-strip{-webkit-app-region:no-drag}
 .desktop-note .glue-strip:active{cursor:grabbing}
 .peel-active .desk{overflow:visible;z-index:6}
 .peel-active .workspace{overflow:visible}
@@ -372,12 +376,61 @@ body:not(.mother-note) .note-actions #new-note{display:none}
 .todo-marker{position:relative;color:transparent;-webkit-text-fill-color:transparent;-webkit-text-stroke:0}
 .todo-marker::before{
   content:"";position:absolute;left:50%;top:50%;width:12px;height:12px;
-  transform:translate(-50%,-50%);box-sizing:border-box;border:1px solid #50513f;border-radius:50%;
+  transform:translate(-50%,-50%);box-sizing:border-box;border:1px solid var(--note-mark-ink,#50513f);border-radius:50%;
 }
-.todo-marker.is-done::before{background:#50513f}
+.todo-marker.is-done::before{background:var(--note-mark-ink,#50513f)}
 .todo-marker.is-done::after{
   content:"";position:absolute;left:50%;top:50%;width:6px;height:3px;
-  border-left:1.3px solid #fffdf1;border-bottom:1.3px solid #fffdf1;
+  border-left:1.3px solid var(--note-mark-check,#fffdf1);border-bottom:1.3px solid var(--note-mark-check,#fffdf1);
   transform:translate(-50%,-65%) rotate(-45deg);
 }
 .note-ink.has-trailing-line::after{content:"\200b"}
+
+/* The display theme changes paper and controls without changing saved colors. */
+.dark-paper{--note-mark-ink:#e4e5e1;--note-mark-check:#292c30}
+.dark-paper .note-title,.dark-paper .note-ink,.dark-paper h3,.dark-paper p,
+.dark-paper #preview-title,.dark-paper #preview-body{color:#e4e5e1}
+.dark-paper .note-body{caret-color:#e4e5e1}
+.dark-paper .note-title::placeholder,.dark-paper .note-body::placeholder{color:#9ca2a8;-webkit-text-fill-color:#9ca2a8}
+.dark-paper .note-body::selection{background:#a6b7cf4a}
+.dark-paper .paper-meta,.dark-paper .paper-bottom,.dark-paper time,.dark-paper #preview-date{color:#9ca2a8}
+.dark-paper .paper-meta>span{border-color:#aab6c647}
+.dark-paper .paper-rule{background:#8e98a83d}
+.dark-paper .paper{box-shadow:0 1px 0 #aab4c029,0 2px 1px #0007,0 5px 7px #0004,2px 16px 24px -9px #0008}
+.dark-paper .paper:after{box-shadow:inset 0 1px 0 #d8e0ea24,inset -1px 0 0 #0004,inset 1px 0 0 #d8e0ea24}
+.dark-paper .text-highlight,.dark-paper .ink-highlight{background:#ebca6f38}
+.dark-paper .todo-hit:hover{background:#dce4ee18}
+.dark-paper .todo-hit:focus-visible{outline-color:#dce4ee88}
+.dark-paper .archive-card-action{color:#afb6c0}
+.archive-drag-ghost.dark-paper{color:#e4e5e1}
+.theme-dark .paper-utility,.theme-dark .note-actions .note-action,
+.desktop-note.theme-dark .paper-utility,.desktop-note.theme-dark .note-actions .note-action,
+.desktop-note.theme-dark .window-actions .icon-button{
+  background:#292c30f5;border-color:#70778180;color:#d7dbdf;box-shadow:0 2px 5px #0004;
+}
+.theme-dark .paper-utility .icon-button,.theme-dark .paper-utility .undo-button,
+.desktop-note.theme-dark .paper-tools .format-tools #strike{background:#35393e;color:#d7dbdf}
+.theme-dark .paper-utility .icon-button[aria-pressed=true],
+.desktop-note.theme-dark .paper-tools .format-tools #strike[aria-pressed=true]{background:#505b52;color:#e1ebdf}
+.theme-dark .note-actions #archive-current{color:#bed2bd}
+.theme-dark .note-actions #delete-current{color:#e0aaa0}
+.theme-dark .paper-utility .icon-button:hover,.theme-dark .note-actions .note-action:hover,
+.desktop-note.theme-dark .window-actions .icon-button:hover{background:#454b53;color:#f3f4f0}
+.theme-dark .paper-utility .toolbar-divider{background:#646b73}
+.theme-dark .swatch{box-shadow:inset 0 0 0 1px #b0bbc24d}
+.theme-dark .swatch[aria-pressed=true]:after{border-color:#d7dbdf}
+.theme-dark .random-color{color:#c5cbd1}
+.theme-dark .random-color[aria-pressed=true]{background:#465348;color:#dfebdc}
+.theme-dark .drop-zones>div{color:#d7dbdf}
+.theme-dark .drop-zones>div[data-action=archive]{color:#bed2bd}
+.theme-dark .drop-zones>div[data-action=delete]{color:#e0aaa0}
+:root.theme-dark{--desk:#24272b;--ink:#e0e3df;--muted:#9ba4ad;--line:#454b52;--accent:#b5ceb6;color-scheme:dark}
+.theme-dark:not(.desktop-note)>.titlebar,.theme-dark:not(.desktop-note)>.statusbar{background:#282c31;color:#b6bec5}
+.theme-dark .desk{background-color:#24272b}
+.desktop-note.theme-dark .desk{background:none}
+.theme-dark .archive-panel{background:#2d3238}
+.theme-dark .archive-heading h2 span,.theme-dark .archive-foot,.theme-dark .section-label{color:#b6bec5}
+.theme-dark dialog{background:#2d3238;border-color:#555d68;color:#e0e3df}
+.theme-dark .dialog-heading,.theme-dark #purge-description{color:#b6bec5}
+.theme-dark .secondary-button{background:#454c56;color:#e0e3df}
+.theme-dark .archive-card:after{background:linear-gradient(135deg,transparent 50%,#2d3238 50%) 0 0/6px 6px}

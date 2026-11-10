@@ -1,12 +1,13 @@
 {
   "name": "siye-demo",
   "productName": "便签",
-  "version": "0.21.0",
+  "version": "0.31.0",
   "private": true,
   "description": "就是一张普通的便签，只不过贴在电脑上。",
   "main": "desktop/main.cjs",
   "scripts": {
-    "check": "node --check desktop/main.cjs && node --check desktop/preload.cjs && node --check app.js && node --check paper-motion.js && node --check paper-audio.js && node --check paper-text.js",
-    "package": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1"
+    "check": "node --check desktop/main.cjs && node --check desktop/preload.cjs && node --check desktop/note-model.js && node --check desktop/backend.js && node --check desktop/webview-bridge.js && node --check app.js && node --check paper-motion.js && node --check paper-audio.js && node --check paper-text.js",
+    "package": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-light.ps1",
+    "package:electron": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1"
   }
 }
