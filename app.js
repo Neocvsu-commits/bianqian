@@ -41,7 +41,7 @@
   function updateHitRegions() {
     if(!bridge) return;
     const dialog=document.querySelector('dialog[open]');
-    const targets=dialog?[dialog]:[stage,$('empty-active'),...edges,document.querySelector('.titlebar'),document.querySelector('.paper-tools'),$('undo'),document.querySelector('.statusbar')];
+    const targets=dialog?[dialog]:[stage,$('empty-active'),...edges,document.querySelector('.note-actions'),document.querySelector('.titlebar'),document.querySelector('.paper-tools'),$('undo'),document.querySelector('.statusbar')];
     if(!$('toast').hidden) targets.push($('toast'));
     bridge.setHitRegions(targets.map(el=>el.getBoundingClientRect()).filter(r=>r.width&&r.height).map(r=>({x:r.x-3,y:r.y-3,width:r.width+6,height:r.height+6})));
   }

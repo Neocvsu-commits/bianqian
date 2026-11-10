@@ -65,6 +65,11 @@
           <div data-action="delete" title="删除"><svg aria-hidden="true"><use href="#i-trash"/></svg></div>
           <div data-action="detach" title="撕下来"><svg aria-hidden="true"><use href="#i-detach"/></svg></div>
         </div>
+        <div class="note-actions" role="group" aria-label="便签操作">
+          <button id="archive-current" class="note-action" title="归档当前便签" aria-label="归档当前便签"><svg aria-hidden="true"><use href="#i-archive"/></svg></button>
+          <button id="delete-current" class="note-action" title="删除当前便签" aria-label="删除当前便签"><svg aria-hidden="true"><use href="#i-trash"/></svg></button>
+          <button id="new-note" class="note-action new-button" title="撕下来贴到桌面（Ctrl+N）" aria-label="撕下来贴到桌面"><svg aria-hidden="true"><use href="#i-detach"/></svg></button>
+        </div>
       </div>
       <div id="empty-active" class="empty-active" hidden><button id="create-note" class="primary-button"><svg><use href="#i-plus"/></svg>新建便签</button></div>
       <div class="tear-caption"><svg><use href="#i-arrow"/></svg><span>两侧揭起，移入目标区域后松手</span></div>
@@ -89,13 +94,6 @@
           <span class="toolbar-divider" aria-hidden="true"></span>
           <button id="undo" class="undo-button" disabled title="撤销（Ctrl+Z，编辑文字时保留文字撤销）" aria-label="撤销最近操作"><svg><use href="#i-undo"/></svg><span id="undo-label">撤销撕下</span></button>
         </div>
-        <div class="paper-editrow">
-          <div class="note-actions" role="group" aria-label="便签操作">
-            <button id="archive-current" class="note-action" title="归档当前便签" aria-label="归档当前便签"><svg aria-hidden="true"><use href="#i-archive"/></svg></button>
-            <button id="delete-current" class="note-action" title="删除当前便签" aria-label="删除当前便签"><svg aria-hidden="true"><use href="#i-trash"/></svg></button>
-            <button id="new-note" class="note-action new-button" title="撕下来贴到桌面（Ctrl+N）" aria-label="撕下来贴到桌面"><svg aria-hidden="true"><use href="#i-detach"/></svg></button>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -106,7 +104,7 @@
     </aside>
   </main>
 
-  <footer class="statusbar"><span id="save-status" role="status"><i></i>已保存在本机</span><div><button id="sound" aria-pressed="true" title="纸张声音"><svg><use href="#i-sound"/></svg><span>纸声</span></button><span class="footer-mark">便签 · DEMO 20</span></div></footer>
+  <footer class="statusbar"><span id="save-status" role="status"><i></i>已保存在本机</span><div><button id="sound" aria-pressed="true" title="纸张声音"><svg><use href="#i-sound"/></svg><span>纸声</span></button><span class="footer-mark">便签 · DEMO 21</span></div></footer>
   <div id="toast" class="toast" role="status" hidden></div>
   <dialog id="note-dialog"><div class="dialog-heading"><span id="preview-kind">已归档的便签</span><button id="dialog-close" class="icon-button" title="关闭" aria-label="关闭"><svg><use href="#i-close"/></svg></button></div><div id="preview-paper"><time id="preview-date"></time><h2 id="preview-title"></h2><pre id="preview-body"></pre></div><div class="dialog-actions"><button id="delete-note" class="danger-button">删除</button><button id="export-note" class="secondary-button">导出文本</button><button id="restore-note" class="primary-button">放回便签本</button></div></dialog>
   <dialog id="purge-dialog"><h2>全部删除最近删除的便签？</h2><p id="purge-description"></p><div class="dialog-actions"><button id="purge-cancel" class="secondary-button">取消</button><button id="purge-confirm" class="danger-button">全部删除</button></div></dialog>

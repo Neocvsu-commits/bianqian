@@ -1,7 +1,7 @@
 {
   "name": "siye-demo",
   "productName": "便签",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "private": true,
   "description": "就是一张普通的便签，只不过贴在电脑上。",
   "main": "desktop/main.cjs",

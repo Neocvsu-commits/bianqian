@@ -3,7 +3,7 @@
 )
 $ErrorActionPreference = 'Stop'
 $projectPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$releasePath = Join-Path $projectPath 'release\便签 Demo 20'
+$releasePath = Join-Path $projectPath 'release\便签 Demo 21'
 $appPath = Join-Path $releasePath 'resources\app'
 $sourceFiles = @('index.html', 'styles.css', 'app.js', 'paper-motion.js', 'paper-audio.js', 'paper-text.js', 'package.json', 'desktop\main.cjs', 'desktop\preload.cjs', 'assets\icon.png', 'assets\icon.ico')
 $executablePath = Join-Path $releasePath '便签.exe'

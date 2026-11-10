@@ -328,7 +328,7 @@ function fitBounds(bounds) {
 function fitPaperBounds(bounds) {
 	const center = { x: Math.round(bounds.x + 320), y: Math.round(bounds.y + 335) };
 	const area = screen.getDisplayNearestPoint(center).workArea;
-	return { ...bounds, x: Math.max(area.x - 140, Math.min(bounds.x, area.x + area.width - 500)), y: Math.max(area.y - 140, Math.min(bounds.y, area.y + area.height - 530)) };
+	return { ...bounds, x: Math.max(area.x - 70, Math.min(bounds.x, area.x + area.width - 500)), y: Math.max(area.y - 140, Math.min(bounds.y, area.y + area.height - 530)) };
 }
 function canvasBoundsFor(logical) {
 	return screen.getDisplayNearestPoint({ x: Math.round(logical.x + 320), y: Math.round(logical.y + 335) }).workArea;
